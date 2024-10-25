@@ -1,0 +1,12 @@
+d3ba860028ab93464c4c9fab3b93b50f *DESCRIPTION
+677abf3351f142d163613c334c451344 *NAMESPACE
+06390c01e22bac0e22edc71cca536236 *R/Functions.R
+a6276459ee73b651a71d314ef5c1a551 *man/C2.Contribution.Rd
+57b59a2389f283fc9ef372318085e44a *man/C2.DecisionLimit.Rd
+c481a1b078ca4988a6e59d5ae757836f *man/C2.allPerms.Rd
+0a09224076954399e51f5f6486911606 *man/SimulatedDistributionC2.Rd
+d6888d3ee07f690aff14945210987786 *man/decomposeA.Rd
+b95268d2f96a0b5bd11ebadd7f790ad2 *man/get.R.Rd
+6f21eaf5022364d964021df228798b89 *man/wChisq.CLim.Rd
+01653e6ac4ee93a801c649ef2df3ff02 *man/wChisq.arl.Rd
+734d75741c0f916e8900df0d0352067d *man/zConditionalParameters.Rd
