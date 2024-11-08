@@ -10,7 +10,6 @@ get.R<-function(Sigma0){
   #     Date: October 6, 2023
   #     Versión: 1.0
 
-  if(matrixcalc::is.positive.definite(Sigma0)){
     sigma0.dim = dim(Sigma0)
     dim.rows = sigma0.dim[1]
     dim.cols = sigma0.dim[2]
@@ -22,11 +21,6 @@ get.R<-function(Sigma0){
       }
     }
     return(R)
-  }else{
-
-    stop(paste0("Matrix Sigma0 is not positive definite."))
-    return(NULL)
-  }
 }
 
 decomposeA <-function(W,R,x.var, z.var){
