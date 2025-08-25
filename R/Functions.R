@@ -199,7 +199,7 @@ C2.Contribution<-function(z, mean0, W, R, x.var, z.var=NULL){
   }
 }
 
-C2.allPerms<-function(z, W, R){
+c2decomp<-function(z, W, R){
   # Returns a matrix with values for C^2_1 and C^2_k|C^2_k-1,C^2_k-2, ..., C^2_1, k=2,3, 4...
   #
   #     Reference: Proposition Distribution of a C^2 contribution
@@ -270,7 +270,6 @@ C2.allPerms<-function(z, W, R){
 
 
 }
-
 
 SimulatedDistributionC2<-function(z, R.C, mu.C, W, R, A, x.var, z.var, alpha, s){
   # Obtains distribution for C2, through simulation of its values
@@ -395,4 +394,138 @@ wChisq.CLim <- function(w,R,alpha){
     stop("Please, check dimensions for W and R")
   }
 }
+
+CTXoptim <- function(delta, R, alpha){
+
+  # Initial proxy weights (log-transformed)
+  nvar <- dim(R)[1]
+  w0 <- rep(1, nvar)
+  theta0 <- log(w0)
+
+  # Inner function to compute total out-of-control ARL
+  funARLs <- function(theta, delta, alpha, R) {
+
+    # Transform proxies to positive weights normalized to sum to 10
+    # (scaling to avoid numerical issues)
+    w_pos <- exp(theta)
+    w_full <- 10 * w_pos / sum(w_pos)
+
+    # Control limit calculation
+    h <- wChisq.CLim(w = w_full, R = R, alpha = alpha)$Control_Limit
+
+    # Sum ARLs for each shift vector
+    ARLs <- 0
+    for (i in seq_along(delta)) {
+      ARLs <- ARLs + wChisq.arl(delta = delta[[i]], R = R, h = h, w = w_full)$arl
+    }
+    return(ARLs)
+  }
+
+  # Optimize proxy weights using quasi-Newton method
+  opt_result <- optim(
+    par = theta0,
+    fn = funARLs,
+    delta = delta,
+    alpha = alpha,
+    R = R,
+    method = "BFGS"
+  )
+
+  # Convert optimized proxies to normalized weights (sum to 1)
+  w_opt <- exp(opt_result$par) / sum(exp(opt_result$par))
+
+  # Compute final control limit
+  h <- wChisq.CLim(w = w_opt, R = R, alpha = alpha)
+
+  results <- list(
+    weights = w_opt,
+    control_limit = h$Control_Limit
+  )
+  return(results)
+}
+
+contributionplot<-function (varnames = NULL, X, alpha, title = NULL)
+{
+  x <- X$C2.Contr
+  pvalues <- X$p.values
+  nVars <- (ncol(x) - 1)/2
+  if (is.null(varnames)) {
+    varnames <- paste0("x", 1:nVars)
+  }
+  if (is.null(title)) {
+    title = "Mean Contribution Plot of"
+  }
+  else {
+    title = paste0("Mean Contribution Plot of ", title)
+  }
+  dc = 0
+  for (i in 1:nVars) {
+    dc = dc + choose(nVars - 1, i - 1)
+  }
+  significance <- cont <- contrMeans <- rep(0, nVars)
+  for (i in 1:nVars) {
+    aux <- 0
+    for (j in 1:nVars) {
+      auxX <- unique(cbind(x[, 1:j], pvalues[, 1:j],x[,(nVars+1):(nVars+j)]))
+      pos <- which(auxX[, j] == i)
+      if (j >= 3) {
+        aux2 <- auxX[pos, 1:(j - 1)]
+        aux2$pos <- pos
+        for (k in 1:nrow(aux2)) {
+          aux2[k, -ncol(aux2)] <- sort(unlist(aux2[k,-ncol(aux2)]))
+        }
+        pos <- aux2$pos[which(!duplicated(aux2[, -ncol(aux2)]))]
+      }
+      pv <- (round(auxX[pos, 2*j], digits = 10))
+
+      aux <- aux + sum(round(auxX[pos, 3*j], digits = 10))
+
+      cont[i] <- cont[i] + length(pv)
+      significance[i] <- significance[i] + sum(pv <= alpha)
+    }
+    contrMeans[i] <- aux/cont[i]
+  }
+  contrDataFrame <- data.frame(variables = varnames, contribution = contrMeans,
+                               significance = significance)
+  contrDataFrame <- contrDataFrame[order(-contrDataFrame$contribution), ]
+  contrDataFrame$percentage <- contrDataFrame$contribution / sum(contrDataFrame$contribution) * 100
+  contrDataFrame$percentage <- cumsum(contrDataFrame$percentage)
+
+  contrDataFrame$Shape <- ifelse(contrDataFrame$significance != 0, 19, 8)
+  contrDataFrame$Label <- ifelse(contrDataFrame$significance != 0, "At least one", "None")
+  contrDataFrame$Color <- ifelse(contrDataFrame$significance != 0, "#C20000", "black")
+
+  colfunc <- colorRampPalette(colors = c("white", "#379962"),
+                              space = "rgb")
+  colors <- colfunc(nVars)
+  scaling_factor <- max(contrDataFrame$percentage)/max(contrDataFrame$contribution)
+  contrDataFrame$SecondaryAxis <- contrDataFrame$percentage/scaling_factor
+
+  graph <- ggplot(contrDataFrame, aes(x = reorder(.data$variables,
+                                                  -.data$contribution))) +
+    geom_col(aes(y = .data$contribution, fill = as.factor(.data$contribution)),col = "black") +
+    geom_line(aes(y = .data$SecondaryAxis, group = 1), color = "black", size = 0.5) +
+    geom_point(aes(y = .data$SecondaryAxis, group = 1, shape = as.factor(.data$Label),
+                   color = as.factor(.data$Label)),  size = 3) +
+    geom_text(aes(y = .data$contribution, label = .data$significance),vjust = -1.75, col = "black") +
+    scale_y_continuous(name = "Mean Contribution", n.breaks = 10,
+                       sec.axis = sec_axis(~. * scaling_factor, name = "Contribution Percentage"),
+                       expand = expansion(mult = c(0.1, 0.1))) +
+    scale_shape_manual(values = as.numeric(unique(contrDataFrame$Shape)), labels = levels(contrDataFrame$Label)) +
+    scale_color_manual(values = unique(contrDataFrame$Color),
+                       labels = levels(contrDataFrame$Label)) +
+    labs(title = title,
+         subtitle = paste0("Calculated over ", unique(cont), " different contributions per variable"),
+         caption = paste0("Number above bars represent how many contributions the  \n variable appeared significant compared to alpha = ", alpha),
+         x = "Variables", y = "Mean contribution", shape = "Significant \n contributions: ", color = "Significant \n contributions: ") +
+    scale_fill_manual(values = colors, guide = "none") +
+    theme_minimal() +
+    theme(plot.title = element_text(hjust = 0.5),
+          plot.subtitle = element_text(hjust = 0.5),
+          legend.position = "bottom")
+
+  return(graph)
+}
+
+
 

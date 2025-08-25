@@ -1,3 +1,6 @@
 exportPattern("^[[:alpha:]]+")
-import("combinat", "matrixcalc", "stats", "mvtnorm", "expm", "CompQuadForm")
+import("stats", "mvtnorm", "expm", "CompQuadForm", "ggplot2","grDevices")
 importFrom("stats", "pchisq", "qchisq", "quantile", "rnorm")
+importFrom("combinat","permn")
+importFrom("matrixcalc","is.square.matrix")
+importFrom("expm", "sqrtm")

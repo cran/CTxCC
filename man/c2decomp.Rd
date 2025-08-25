@@ -1,5 +1,5 @@
-\name{C2.allPerms}
-\alias{C2.allPerms}
+\name{c2decomp}
+\alias{c2decomp}
 
 \title{
 Contribution to C^2 for all variables
@@ -8,7 +8,7 @@ Contribution to C^2 for all variables
 Returns a matrix with values for C^2_1 and C^2_k|C^2_k-1,C^2_k-2, ..., C^2_1, k=2,3, 4... for all possible permutations among k variables
 }
 \usage{
-C2.allPerms(z, W, R)
+c2decomp(z, W, R)
 }
 
 \arguments{
@@ -49,6 +49,6 @@ X = matrix(ncol= 1, data = rmvnorm(n = 1, mean = mu0, sigma = sigma0))
 Z = (X - mu0)/sqrt(as.numeric(diag(sigma0)))
 Corr<-get.R(Sigma0 = sigma0)
 
-C2.allPerms(z = Z, W = Weights, R = Corr)
+c2decomp(z = Z, W = Weights, R = Corr)
 
 }
