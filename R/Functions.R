@@ -395,7 +395,113 @@ wChisq.CLim <- function(w,R,alpha){
   }
 }
 
-CTXoptim <- function(delta, R, alpha){
+CTXoptim<-function(delta, R, alpha, n_starts = 30, method_primary = "BFGS", method_secondary = "Nelder-Mead",
+                   scale_sum = 1, jitter_sd = 0.3,seed = 123){
+
+
+  if(n_starts==1){
+    return(ss.optim(delta = delta, R = R, alpha = alpha))
+  }else{
+    if(is.null(method_secondary))
+      method_secondary<-"Nelder-Mead"
+    return(ms.optim(delta, R, alpha,
+                    n_starts = n_starts,
+                    method_primary = method_primary,
+                    method_secondary = method_secondary,
+                    scale_sum = scale_sum,
+                    jitter_sd = jitter_sd,
+                    seed = seed))
+  }
+}
+
+
+
+ms.optim <- function(delta, R, alpha, n_starts,  method_primary, method_secondary,
+                     scale_sum, jitter_sd, seed) {
+  set.seed(seed)
+
+  nvar <- nrow(R)
+
+  # Objective: minimize total OC ARL across scenarios
+  funARLs <- function(theta) {
+    # softmax -> positive and sum to 'scale_sum'
+    w_pos  <- exp(theta)
+    w_unit <- w_pos / sum(w_pos)
+    w_use  <- scale_sum * w_unit
+
+    # control limit for these exact weights
+    h <- wChisq.CLim(w = w_use, R = R, alpha = alpha)$Control_Limit
+
+    # sum ARLs across scenarios
+    ARLs <- 0
+    for (i in seq_along(delta)) {
+      ARLs <- ARLs + wChisq.arl(delta = delta[[i]], R = R, h = h, w = w_use)$arl
+    }
+    ARLs
+  }
+
+  # deterministic center + randomized rest
+  starts <- matrix(0, nrow = n_starts, ncol = nvar)
+  if (n_starts >= 2) {
+    starts[2:n_starts, ] <- matrix(rnorm((n_starts - 1) * nvar, sd = jitter_sd),
+                                   nrow = n_starts - 1)
+  }
+
+  best_val <- Inf
+  best_par <- rep(NA_real_, nvar)
+  best_method <- NA_character_
+
+  for (s in 1:n_starts) {
+    theta0 <- starts[s, ]
+
+    # Primary method
+    fit1 <- try(optim(par = theta0, fn = funARLs, method = method_primary),
+                silent = TRUE)
+
+    cand_val <- Inf
+    cand_par <- theta0
+    cand_method <- method_primary
+
+    if (!inherits(fit1, "try-error") && is.finite(fit1$value)) {
+      cand_val <- fit1$value
+      cand_par <- fit1$par
+    } else {
+      # Secondary method (derivative-free) as backup
+      fit2 <- try(optim(par = theta0, fn = funARLs, method = method_secondary),
+                  silent = TRUE)
+      if (!inherits(fit2, "try-error") && is.finite(fit2$value)) {
+        cand_val <- fit2$value
+        cand_par <- fit2$par
+        cand_method <- method_secondary
+      }
+    }
+
+    if (cand_val < best_val) {
+      best_val <- cand_val
+      best_par <- cand_par
+      best_method <- cand_method
+    }
+  }
+
+  # Final weights: keep the SAME normalization as in the objective
+  w_pos  <- exp(best_par)
+  w_unit <- w_pos / sum(w_pos)
+  w_opt  <- scale_sum * w_unit
+
+  h <- wChisq.CLim(w = w_opt, R = R, alpha = alpha)$Control_Limit
+
+  list(
+    weights = as.numeric(w_opt),
+    control_limit = h,
+    objective = best_val,
+    method = best_method,
+    n_starts = n_starts
+  )
+}
+
+
+
+ss.optim <- function(delta, R, alpha){
 
   # Initial proxy weights (log-transformed)
   nvar <- dim(R)[1]
@@ -439,10 +545,14 @@ CTXoptim <- function(delta, R, alpha){
 
   results <- list(
     weights = w_opt,
-    control_limit = h$Control_Limit
+    control_limit = h$Control_Limit,
+    objective = opt_result$value,
+    method = "BFGS",
+    n_starts = 1
   )
   return(results)
 }
+
 
 contributionplot<-function (varnames = NULL, X, alpha, title = NULL)
 {

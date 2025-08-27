@@ -2,7 +2,7 @@ Package: CTxCC
 Type: Package
 Title: Multivariate Normal Mean Monitoring Through Critical-to-X
         Control Chart
-Version: 0.3.0
+Version: 0.4.0
 Authors@R: c(person(given = c("Burcu"),
                       family = "Aytaçoğlu",
                       role = "aut",
@@ -29,10 +29,10 @@ Encoding: UTF-8
 Depends: combinat, matrixcalc, stats, mvtnorm, expm, CompQuadForm,
         ggplot2
 NeedsCompilation: no
-Packaged: 2025-08-25 20:35:43 UTC; dianabza
+Packaged: 2025-08-27 03:18:16 UTC; dianabza
 Author: Burcu Aytaçoğlu [aut] (burcuaytacoglu@gmail.com),
   Diana Barraza-Barraza [aut, cre] (diana.barraza@ujed.mx),
   Víctor G. Tercero-Gómez [aut] (victor.tercero@tec.mx),
   A. Eduardo Cordero-Franco [aut] (lalo.cordero@gmail.com)
 Repository: CRAN
-Date/Publication: 2025-08-25 21:10:02 UTC
+Date/Publication: 2025-08-27 23:20:02 UTC
